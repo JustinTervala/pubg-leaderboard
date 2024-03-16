@@ -8,15 +8,16 @@ from dotenv import dotenv_values
 import argparse
 from pathlib import Path
 from typing import Any, Iterable, Optional, Union
-from redis import Redis
+from redis.cluster import RedisCluster as Redis
+import os
 
 def load_config() -> dict[str, str]:
     config = dotenv_values(".env")
-    secret_config = dotenv_values(".env.secret")
+    secret_config = dotenv_values("/etc/secrets/.env.secret") | dotenv_values(".env.secret")
     merged_config = config | secret_config
     printed_configs = [f"{key}={value}" for key, value in config.items() if key not in secret_config] + [f"{key}=******" for key in secret_config]
-    print(f"Using config {', '.join(printed_configs)}")
-    return merged_config
+    print(f"Using config from file {', '.join(printed_configs)}")
+    return merged_config | os.environ
 
 config = load_config()
 
@@ -145,12 +146,11 @@ def read_cache(cache_path: Path) -> Union[dict, list]:
 def write_to_redis(players: dict[str, list[dict]]) -> None:
     print("Writing to redis...")
     redis_client = Redis(host=config["REDIS_ADDRESS"], port=config["REDIS_PORT"], password=config["REDIS_PASSWORD"])
-    data = {account_id.replace('.', ":"): json.dumps(leaderboards) for i, (account_id, leaderboards) in enumerate(players.items()) if i < 10}
     for i, (account_id, leaderboards) in enumerate(players.items()):
         if i > 10:
             break
-        redis_client.set(account_id.replace(".", ":"), leaderboards)
-
+        redis_client.set(account_id.replace(".", ":"), json.dumps(leaderboards))
+    
 
 def main(cache_dir: Optional[Path]=Path("./data"), use_cache: bool=False, quick: bool=False) -> None:
     cache_dir = Path(cache_dir)

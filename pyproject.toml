@@ -5,12 +5,13 @@ description = ""
 authors = ["Justin Tervala <jgtervala@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.9"
 requests = "^2.31.0"
 pydantic = "^2.6.4"
 requests-ratelimiter = "^0.6.0"
 python-dotenv = "^1.0.1"
 redis = {extras = ["hiredis"], version = "^5.0.3"}
+async-timeout = "^4.0.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.1.1"
