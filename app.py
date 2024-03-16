@@ -1,4 +1,3 @@
-import requests
 from pydantic import BaseModel, Field
 import time
 import sys
@@ -6,19 +5,20 @@ from requests_ratelimiter import LimiterSession
 import json
 from collections import defaultdict
 from dotenv import dotenv_values
-import os
 import argparse
 from pathlib import Path
 from typing import Any, Iterable, Optional, Union
+from redis import Redis
 
-config = {
-    **dotenv_values(".env"),
-}
+def load_config() -> dict[str, str]:
+    config = dotenv_values(".env")
+    secret_config = dotenv_values(".env.secret")
+    merged_config = config | secret_config
+    printed_configs = [f"{key}={value}" for key, value in config.items() if key not in secret_config] + [f"{key}=******" for key in secret_config]
+    print(f"Using config {', '.join(printed_configs)}")
+    return merged_config
 
-pretty_config = ', '.join([f'{key}={value}' for key, value in config.items()])
-print(f"Using config {pretty_config}")
-
-config |= dotenv_values(".env.secret")
+config = load_config()
 
 class SeasonAttributes(BaseModel):
     is_current_season: bool = Field(serialization_alias="isCurrentSeason")
@@ -36,7 +36,7 @@ headers = {
     "Authorization": f"Bearer {config['PUBG_API_KEY']}",
 }
 
-session = LimiterSession(per_minute=9, headers=headers)
+session = LimiterSession(per_minute=9)
 platform = "psn"
 platform_region = "pc-na"
 
@@ -87,9 +87,15 @@ def iter_leaderboards() -> Iterable[tuple[str, str, str]]:
             for game_mode in game_modes:
                 yield platform_region, current_season, game_mode
 
-def get_leaderboards() -> dict[str, Any]:
+def get_leaderboards(quick: bool=False) -> dict[str, Any]:
     leaderboards = {}
+    i = 0
+    print("Scraping leaderboards...")
     for platform_region, current_season, game_mode in iter_leaderboards():
+        i += 1
+        if i > 3:
+            print("ENDING")
+            break
         leaderboard_resp = session.get(leaderboard_url.format(shard=platform_region, season_id=current_season, game_mode=game_mode), headers=headers)
         if not leaderboard_resp.ok:
             try:
@@ -129,30 +135,46 @@ def summarize_leaderboards(leaderboards: dict[str, Any]) -> dict:
     return players
 
 def write_to_cache(cache_path: Path, obj: dict) -> None:
-    contents = json.dumps(obj, sort_keys=True, indent=4, separators = (". ", " = "))
+    contents = json.dumps(obj, sort_keys=True, indent=4, separators = (", ", " : "))
     cache_path.write_text(contents, encoding="utf-8")
 
 def read_cache(cache_path: Path) -> Union[dict, list]:
     return json.loads(cache_path.read_text(encoding="utf-8"))
 
-def main(cache_dir: Optional[Path]=Path("./data"), use_cache: bool=False) -> None:
+
+def write_to_redis(players: dict[str, list[dict]]) -> None:
+    print("Writing to redis...")
+    redis_client = Redis(host=config["REDIS_ADDRESS"], port=config["REDIS_PORT"], password=config["REDIS_PASSWORD"])
+    data = {account_id.replace('.', ":"): json.dumps(leaderboards) for i, (account_id, leaderboards) in enumerate(players.items()) if i < 10}
+    for i, (account_id, leaderboards) in enumerate(players.items()):
+        if i > 10:
+            break
+        redis_client.set(account_id.replace(".", ":"), leaderboards)
+
+
+def main(cache_dir: Optional[Path]=Path("./data"), use_cache: bool=False, quick: bool=False) -> None:
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     leaderboards_cache = cache_dir / "leaderboards.json"
-    if use_cache and leaderboards_cache.exists():
+    if not quick and use_cache and leaderboards_cache.exists():
         leaderboards = read_cache(leaderboards_cache)
     else:
         # disable using future caching
         use_cache = False
-        leaderboards = get_leaderboards()
-        write_to_cache(cache_dir, "leanderboards.json", leaderboards)
+        leaderboards = get_leaderboards(quick=quick)
+        if use_cache:
+            write_to_cache(cache_dir / "leanderboards.json", leaderboards)
     players = summarize_leaderboards(leaderboards)
-    write_to_cache(cache_dir, "players.json", players)
+    if not quick:
+        write_to_cache(cache_dir / "players.json", players)
+    write_to_redis(players)
+
 
 def parse_args() -> dict[str, Any]:
     parser = argparse.ArgumentParser(prog='PubgLeaderboard', description='Scrape and consolidate the PUBg leaderboards')
     parser.add_argument("-c", "--cache-dir", help="path to the cache directory", default="./data")
     parser.add_argument("--use-cache", action="store_true")
+    parser.add_argument("--quick", action="store_true")
     args = parser.parse_args()
     return vars(args)
 

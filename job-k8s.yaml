@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hello
+spec:
+  #schedule: "0 0 * * *"
+  # jobTemplate:
+  #   spec:
+  template:
+    spec:
+      containers:
+      - name: hello
+        image: pubg
+        imagePullPolicy: Never
+        command:
+          - "python"
+          - "app.py"
+        args:
+          - "--quick"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 64Mi
+      restartPolicy: OnFailure

@@ -1,14 +1,15 @@
 Script
     
-    
+
 Script Polish
+    - use pydantic for response models
     - add tests
-    - add typing
-    - use pydantic settings to validate config  
+    - use pydantic settings to validate config
+    - setup mypy
+    - setup black
 
 
-DOCKERfile polish
-Setup user
+Dockerfile polish
 
 
 Infra (ADD TO INSTRUCTIONS)
@@ -16,6 +17,7 @@ Infra (ADD TO INSTRUCTIONS)
     - deploy nginx ingress controller
     - deploy cronjob
     - configure redis
+    - Use TLS, username password with redis
 
 Infra Polish
     - pod disruption budget
