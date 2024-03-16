@@ -52,6 +52,6 @@ RUN groupadd -g $GID -o $GNAME && \
     chown -R $UNAME:$GNAME /home/$UNAME/pubg_leaderboard_scraper && \
     chmod 755 /home/$UNAME/pubg_leaderboard_scraper
 
-COPY app.py .
+COPY . ./
 
 ENTRYPOINT ["python", "app.py"]

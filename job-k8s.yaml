@@ -15,7 +15,7 @@ spec:
       imagePullPolicy: Never
       command:
         - "python"
-        - "app.py"
+        - "job.py"
       args:
         - "--quick"
       env:

@@ -24,7 +24,7 @@ minikube start
 If on an M-series chip, follow isntructions at https://devopscube.com/minikube-mac/
 minikube start --driver qemu --network socker_wmnet
 
-Create namespace
+Create namespace    
 kubectl apply -f namespace.yaml
 
 
@@ -57,3 +57,12 @@ echo "REDIS_PASSWORD=\"$REDIS_PASSWORD\"" >> .env.secret
 Local testing
 kubectl port-forward pubg-redis-cluster 6379:6379
 poetry run app.py
+
+Enable NGINX ingress
+minikube addons enable ingress
+
+
+to send a curl
+minikube service pubg --url -n pubg
+In another tab
+curl <url>/accounts/<account_id>/leaderboards
