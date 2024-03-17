@@ -9,6 +9,7 @@ spec:
   #   spec:
   # template:
   #   spec:
+  serviceAccount: pubg-sa
   containers:
     - name: hello
       image: "pubg-scraper:latest"
