@@ -14,10 +14,9 @@ spec:
     - name: hello
       image: "pubg-scraper:latest"
       imagePullPolicy: Never
-      command:
+      args:
         - "python"
         - "pubg/job.py"
-      args:
         - "--quick"
       env:
         - name: REDIS_HOST

@@ -43,7 +43,9 @@ ARG GID=1000
 ENV VIRTUAL_ENV=/home/$UNAME/pubg_leaderboard_scraper/.venv
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
-RUN apt-get update && apt-get clean
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends dumb-init && \
+    apt-get clean
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
@@ -54,4 +56,4 @@ RUN groupadd -g $GID -o $GNAME && \
 
 COPY . ./
 
-ENTRYPOINT ["python", "app.py"]
+ENTRYPOINT ["dumb-init", "--"]

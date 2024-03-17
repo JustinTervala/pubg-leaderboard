@@ -14,14 +14,13 @@ spec:
       labels:
         app: pubg
     spec:
-      serviceAccount: pubg-sa
+      #serviceAccount: pubg-sa
       containers:
         - name: hello
           image: "pubg-scraper:latest"
           imagePullPolicy: Never
-          command:
-            - "uvicorn"
           args:
+            - "uvicorn"
             - "pubg.app:app"
             - "--host=0.0.0.0"
             - "--port=8080"
@@ -41,6 +40,18 @@ spec:
             limits:
               cpu: 500m
               memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
         - name: secret-volume
           secret:

@@ -1,38 +1,34 @@
 # Install dependencies
 
+
 ```ShellSession
-$: brew isntall minikube docker helm
+$: brew install minikube docker helm
 ```
-If you are on an apple m3, then 
-```brew install qemu```
 
-Start docker
-
-Verify install
+Verify install (more here)
 ```
 minikube version
 ```
+start docker
 
-configure docker to use local docker
-```
-eval $(minikube docker-env)
-```
 Start minikube
 ```
 minikube start
+```
+configure minikube to work with local docker
+```
+eval $(minikube docker-env)
 ```
 
 Create namespace    
 kubectl apply -f namespace.yaml
 
 
-adjust context
-kubectl config set-context $(kubectl config current-context) --namespace=pubg
 
 
 __ can add -f values.yaml for config__
 
-helm install pubg oci://registry-1.docker.io/bitnamicharts/redis-cluster
+helm install pubg-redis oci://registry-1.docker.io/bitnamicharts/redis-cluster --namespace pubg -f infra/redis-values.yaml
 
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add grafana https://grafana.github.io/helm-charts
@@ -50,6 +46,7 @@ Add secrets
 echo MY_API_KEY >> .env.secret
 export REDIS_PASSWORD=$(kubectl get secret --namespace "pubg" pubg-redis-cluster -o jsonpath="{.data.redis-password}" | base64 -d)
 echo "REDIS_PASSWORD=\"$REDIS_PASSWORD\"" >> .env.secret
+kubectl create secret generic pubg-scraper-secret --from-file .env.secret --namespace pubg
 
 
 Local testing
@@ -92,4 +89,15 @@ eksctl create iamserviceaccount \
 Alternatively, you could run
 kubectl annotate sa pubg-sa eks.amazonaws.com/role-arn=$MY_ROLE_ARN
 
-Then creating the deplopyments should
+Then creating the deplopyments should be connected to the IAM role
+
+
+to update the redis secret (after redeploying redis for example)
+kubectl create secret generic pubg-scraper-secret \
+    --save-config \
+    --dry-run=client \
+    --from-file=.env.secret \
+    -o yaml | \
+    kubectl apply -f -
+
+

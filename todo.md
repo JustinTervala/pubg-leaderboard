@@ -1,5 +1,4 @@
 Script
-    - move into own dir
     
 
 Script Polish
@@ -26,3 +25,11 @@ slim vs slim buster in dockerfile
     Python buster is a big image that comes with development dependencies, and we will use it to install a virtual environment.
     Python slim-buster is a smaller image that comes with the minimal dependencies to just run Python, and we will use it to run our application.
 
+
+Overall
+    - IRSA
+    - Deploy prometheus, grapfana
+    - Add metrics
+    - Add documentation for setting it all up
+    - Add pod disruption for app
+    
