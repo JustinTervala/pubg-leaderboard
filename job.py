@@ -1,19 +1,25 @@
-from pydantic import BaseModel, Field
 import time
 import sys
-from requests_ratelimiter import LimiterSession
 import json
 from collections import defaultdict
-from dotenv import dotenv_values
 import argparse
 from pathlib import Path
 from typing import Any, Iterable, Optional, Union
-from redis.cluster import RedisCluster as Redis
 import os
-from config import load_config
+import logging
+
+from pydantic import BaseModel, Field
+from requests_ratelimiter import LimiterSession
+from dotenv import dotenv_values
+from redis.cluster import RedisCluster as Redis
+
+from config import load_config, configure_logging
 from models import Season, SeasonLeaderboard
 
 
+logger = logging.getLogger(__name__)
+
+configure_logging()
 config = load_config()
 
 
@@ -60,16 +66,15 @@ def iter_platform_regions() -> Iterable[str]:
 def get_current_season(shard: str) -> Optional[str]:
     seasons_resp = session.get(seasons_url.format(shard=shard), headers=headers)
     if not seasons_resp.ok:
-        print(f"{shard} failed")
-        print(seasons_resp)
+        logger.error(f"Getting season for {shard} failed: {seasons_resp}")
         return None
-    # print(seasons_resp.json()["data"])
     seasons = [Season(**s) for s in seasons_resp.json()["data"]]
     for season in seasons:
         attr = season.attributes
         if season.attributes.is_current_season:
-            print(f"Platform {shard} season {season.id}")
+            logger.info(f"Current season for {shard}: {season.id}")
             return season.id
+    logger.warning(f"{shard} has no current season")
     return None
 
 
@@ -83,12 +88,13 @@ def iter_leaderboards() -> Iterable[tuple[str, str, str]]:
 def get_leaderboards(quick: bool = False) -> dict[str, Any]:
     leaderboards = {}
     i = 0
-    print("Scraping leaderboards...")
+    logger.info("Scraping leaderboards...")
     out = []
     for platform_region, current_season, game_mode in iter_leaderboards():
+        log_key = f"{current_season} {platform_region} {game_mode}"
         i += 1
         if quick and i > 3:
-            print("ENDING")
+            logger.info("ENDING")
             break
         leaderboard_resp = session.get(
             leaderboard_url.format(
@@ -98,17 +104,20 @@ def get_leaderboards(quick: bool = False) -> dict[str, Any]:
         )
         if not leaderboard_resp.ok:
             try:
-                print(leaderboard_resp.json())
+                logger.error(
+                    f"Getting leaderboard for {log_key} failed: {leaderboard_resp.json()}"
+                )
             except:
-                print(leaderboard_resp)
+                logger.error(
+                    f"Getting leaderboard for {log_key} failed: {leaderboard_resp}"
+                )
         leaderboard_json = leaderboard_resp.json()
         leaderboard = SeasonLeaderboard(**leaderboard_json)
-        log_key = f"{platform_region} {game_mode}"
         if not leaderboard.players:
-            print(f"Skipping {log_key}")
+            logger.info(f"Leaderboard {log_key} has no players. Skipping.")
             continue
         else:
-            print(f"\nFOUND {log_key}\n")
+            logger.info(f"Found leaderboard for {log_key}")
         key = (platform_region, current_season, game_mode)
         leaderboards[key] = leaderboard.players
     return leaderboards
@@ -146,7 +155,7 @@ def read_cache(cache_path: Path) -> Union[dict, list]:
 
 
 def write_to_redis(players: dict[str, list[dict]]) -> None:
-    print("Writing to redis...")
+    logger.info("Writing to redis...")
     redis_client = Redis(
         host=config["REDIS_ADDRESS"],
         port=config["REDIS_PORT"],
