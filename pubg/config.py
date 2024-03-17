@@ -21,12 +21,13 @@ def load_config() -> dict[str, str]:
     return merged_config | os.environ
 
 
-def configure_logging():
+def configure_logging(debug: bool=False) -> None:
+    level = logging.DEBUG if debug else logging.INFO
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    root.setLevel(level)
 
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(level)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )

@@ -4,14 +4,14 @@ import json
 from fastapi import FastAPI, HTTPException
 from redis.cluster import RedisCluster as Redis
 
-from config import load_config, configure_logging
+from .config import load_config, configure_logging
 
 
 configure_logging()
 app = FastAPI(name="PUBG Leaderboards")
 config = load_config()
 redis = Redis(
-    host=config["REDIS_ADDRESS"],
+    host=config["REDIS_HOST"],
     port=config["REDIS_PORT"],
     password=config["REDIS_PASSWORD"],
 )

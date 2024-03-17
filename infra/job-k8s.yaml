@@ -15,11 +15,11 @@ spec:
       imagePullPolicy: Never
       command:
         - "python"
-        - "job.py"
+        - "pubg/job.py"
       args:
         - "--quick"
       env:
-        - name: REDIS_ADDRESS
+        - name: REDIS_HOST
           value: pubg-redis-cluster
         - name: REDIS_PORT
           value: "6379"
