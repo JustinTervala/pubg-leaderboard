@@ -12,9 +12,16 @@ from pydantic import BaseModel, Field
 from requests_ratelimiter import LimiterSession
 from dotenv import dotenv_values
 from redis.cluster import RedisCluster as Redis
+import click
 
 from config import load_config, configure_logging
-from models import Season, SeasonLeaderboard
+from models import (
+    Season,
+    SeasonLeaderboard,
+    GameMode,
+    LeaderboardKey,
+    LeaderboardPlayer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -31,12 +38,7 @@ headers = {
 }
 
 session = LimiterSession(per_minute=9)
-platform = "psn"
-platform_region = "pc-na"
 
-# game_modes = ("solo","solo-fpp", "duo", "duo-fpp", "squad", "squad-fpp")
-game_modes = ("solo", "squad", "squad-fpp")  # Only found leaderboards for these
-platforms = ("kakao", "stadia", "steam", "psn", "xbox", "console")
 platform_regions = {
     "pc": ["as", "eu", "jp", "kakao", "krjp", "na", "oc", "ru", "sa", "sea"],
     "psn": ["as", "eu", "na", "oc"],
@@ -78,65 +80,64 @@ def get_current_season(shard: str) -> Optional[str]:
     return None
 
 
-def iter_leaderboards() -> Iterable[tuple[str, str, str]]:
+def iter_leaderboards() -> Iterable[LeaderboardKey]:
     for platform_region in iter_platform_regions():
         if current_season := get_current_season(platform_region):
-            for game_mode in game_modes:
-                yield platform_region, current_season, game_mode
+            for game_mode in GameMode.current_modes():
+                yield LeaderboardKey(
+                    platform_region=platform_region,
+                    season=current_season,
+                    game_mode=game_mode,
+                )
 
 
-def get_leaderboards(quick: bool = False) -> dict[str, Any]:
+def get_leaderboards(
+    quick: bool = False,
+) -> dict[LeaderboardKey, list[LeaderboardPlayer]]:
     leaderboards = {}
     i = 0
     logger.info("Scraping leaderboards...")
     out = []
-    for platform_region, current_season, game_mode in iter_leaderboards():
-        log_key = f"{current_season} {platform_region} {game_mode}"
+    for key in iter_leaderboards():
         i += 1
         if quick and i > 3:
             logger.info("ENDING")
             break
         leaderboard_resp = session.get(
             leaderboard_url.format(
-                shard=platform_region, season_id=current_season, game_mode=game_mode
+                shard=key.platform_region,
+                season_id=key.season,
+                game_mode=key.game_mode.value,
             ),
             headers=headers,
         )
         if not leaderboard_resp.ok:
+            msg = f"Getting leaderboard for {str(key)} failed"
             try:
-                logger.error(
-                    f"Getting leaderboard for {log_key} failed: {leaderboard_resp.json()}"
-                )
+                logger.error(f"{msg}: {leaderboard_resp.json()}")
             except:
-                logger.error(
-                    f"Getting leaderboard for {log_key} failed: {leaderboard_resp}"
-                )
+                logger.error(f"{msg}: {leaderboard_resp}")
         leaderboard_json = leaderboard_resp.json()
         leaderboard = SeasonLeaderboard(**leaderboard_json)
         if not leaderboard.players:
-            logger.info(f"Leaderboard {log_key} has no players. Skipping.")
+            logger.info(f"Leaderboard {str(key)} has no players. Skipping.")
             continue
         else:
-            logger.info(f"Found leaderboard for {log_key}")
-        key = (platform_region, current_season, game_mode)
+            logger.info(f"Found leaderboard for {str(key)}")
         leaderboards[key] = leaderboard.players
     return leaderboards
 
 
-def summarize_leaderboards(leaderboards: dict[str, Any]) -> dict:
+def summarize_leaderboards(leaderboards: dict[LeaderboardKey, list[LeaderboardPlayer]]) -> dict[str, list[dict[str, Any]]]:
     players = defaultdict(list)
-    for (
-        platform_region,
-        current_season,
-        game_mode,
-    ), leaderboard in leaderboards.items():
+    for key, leaderboard in leaderboards.items():
         for player in leaderboard:
             attr = player.attributes
             stats = attr.stats
             player_data = {
-                "platform_region": platform_region,
-                "current_season": current_season,
-                "game_mode": game_mode,
+                "platform_region": key.platform_region,
+                "current_season": key.season,
+                "game_mode": key.game_mode.value,
                 "rank": attr.rank,
                 "games_played": stats.games,
                 "wins": stats.wins,
@@ -157,7 +158,7 @@ def read_cache(cache_path: Path) -> Union[dict, list]:
 def write_to_redis(players: dict[str, list[dict]]) -> None:
     logger.info("Writing to redis...")
     redis_client = Redis(
-        host=config["REDIS_ADDRESS"],
+        host=config["REDIS_HOST"],
         port=config["REDIS_PORT"],
         password=config["REDIS_PASSWORD"],
     )
@@ -166,12 +167,16 @@ def write_to_redis(players: dict[str, list[dict]]) -> None:
             break
         redis_client.set(account_id.replace(".", ":"), json.dumps(leaderboards))
 
-
+@click.command()
+@click.option("-c", "--cache-dir", type=click.Path(file_okay=False, path_type=Path), default=Path("./data"))
+@click.option("--use-cache", is_flag=True)
+@click.option("--quick", is_flag=True)
 def main(
-    cache_dir: Optional[Path] = Path("./data"),
-    use_cache: bool = False,
-    quick: bool = False,
+    cache_dir: Optional[Path],
+    use_cache: bool,
+    quick: bool,
 ) -> None:
+    """Fetch and summarize PUBG leadersboards and write them to Redis"""
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     leaderboards_cache = cache_dir / "leaderboards.json"
@@ -188,21 +193,5 @@ def main(
         write_to_cache(cache_dir / "players.json", players)
     # write_to_redis(players)
 
-
-def parse_args() -> dict[str, Any]:
-    parser = argparse.ArgumentParser(
-        prog="PubgLeaderboard",
-        description="Scrape and consolidate the PUBg leaderboards",
-    )
-    parser.add_argument(
-        "-c", "--cache-dir", help="path to the cache directory", default="./data"
-    )
-    parser.add_argument("--use-cache", action="store_true")
-    parser.add_argument("--quick", action="store_true")
-    args = parser.parse_args()
-    return vars(args)
-
-
 if __name__ == "__main__":
-    args = parse_args()
-    main(**args)
+    main()

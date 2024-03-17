@@ -1,4 +1,31 @@
+from enum import Enum
+from dataclasses import dataclass
+
 from pydantic import BaseModel, Field, ConfigDict
+
+
+class GameMode(Enum):
+    SOLO = "solo"
+    SOLO_FPP = "solo-fpp"
+    DUO = "duo"
+    DUO_FPP = "duo-fpp"
+    SQUAD = "squad"
+    SQUAD_FPP = "squad-fpp"
+
+    @classmethod
+    def current_modes(cls):
+        # Only found leaderboards for these game modes
+        return (cls.SOLO, cls.SQUAD, cls.SQUAD_FPP)
+
+
+@dataclass(frozen=True)
+class LeaderboardKey:
+    platform_region: str
+    season: str
+    game_mode: GameMode
+
+    def __str__(self):
+        return f"{self.season} {self.platform_region} {self.game_mode.value}"
 
 
 class PubgApiBase(BaseModel):
