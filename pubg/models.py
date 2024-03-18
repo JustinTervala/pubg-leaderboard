@@ -62,3 +62,25 @@ class LeaderboardPlayer(PubgApiBase):
 
 class SeasonLeaderboard(PubgApiBase):
     players: list[LeaderboardPlayer] = Field(alias="included", default_factory=list)
+
+
+class PlayerRank(BaseModel):
+    platform_region: str
+    season: str
+    game_mode: GameMode
+    rank: int
+    games_played: int
+    wins: int
+
+    @classmethod
+    def from_player(cls, player: LeaderboardPlayer, key: LeaderboardKey) -> "PlayerRank":
+        attr = player.attributes
+        stats = attr.stats
+        return cls(
+            platfom_region=key.platform_region,
+            season=key.season,
+            game_mode=key.game_mode,
+            rank=attr.rank,
+            games_played=stats.games,
+            wins=stats.wins,
+        )

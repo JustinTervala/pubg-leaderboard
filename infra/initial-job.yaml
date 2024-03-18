@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pubg-oneoff-scrape
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      serviceAccount: pubg
+      restartPolicy: OnFailure
+      containers:
+        - name: pubg-oneoff
+          image: "pubg-scraper:latest"
+          imagePullPolicy: Never
+          args:
+            - "python"
+            - "pubg/job.py"
+            - "--quick"
+          envFrom:
+            - configMapRef:
+                name: redis-config
+          volumeMounts:
+            - name: secret-volume
+              mountPath: /etc/secrets/
+              readOnly: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: pubg-scraper-secret

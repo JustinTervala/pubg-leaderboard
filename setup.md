@@ -20,26 +20,17 @@ configure minikube to work with local docker
 eval $(minikube docker-env)
 ```
 
-Create namespace    
-kubectl apply -f namespace.yaml
-
-
-
-
-__ can add -f values.yaml for config__
-
-helm install pubg-redis oci://registry-1.docker.io/bitnamicharts/redis-cluster --namespace pubg -f infra/redis-values.yaml
-
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add grafana https://grafana.github.io/helm-charts
-help repo add bitnami 
 helm repo update
+  
+kubectl apply -f infra/namespace.yaml
+kubectl apply -f infra/monitoring-volumes.yaml
+helm install prometheus prometheus-community/prometheus --namespace monitoring -f infra/values/prom.yaml
+helm install grafana grafana/grafana --namespace monitoring -f infra/values/grafana.yaml
+helm install pubg-redis oci://registry-1.docker.io/bitnamicharts/redis-cluster --namespace pubg -f infra/values/redis.yaml
+kubectl apply -f infra/redis-config.yaml
 
-https://semaphoreci.com/blog/prometheus-grafana-kubernetes-helm
-
-to instrument with emtrics use a push gateway
-
-https://stackoverflow.com/questions/5zz4920309/monitoring-short-lived-python-batch-job-processes-using-prometheus
 
 Add secrets
 
@@ -49,13 +40,9 @@ echo "REDIS_PASSWORD=\"$REDIS_PASSWORD\"" >> .env.secret
 kubectl create secret generic pubg-scraper-secret --from-file .env.secret --namespace pubg
 
 
-Local testing
-kubectl port-forward pubg-redis-cluster 6379:6379
-poetry run app.py
-
 Enable NGINX ingress
 minikube addons enable ingress
-
+kubectl apply -f ingress.yaml
 
 to send a curl
 minikube service pubg --url -n pubg
@@ -101,3 +88,32 @@ kubectl create secret generic pubg-scraper-secret \
     kubectl apply -f -
 
 
+The Prometheus PushGateway can be accessed via port 9091 on the following DNS name from within your cluster:
+prometheus-prometheus-pushgateway.monitoring.svc.cluster.local
+
+
+Get the PushGateway URL by running these commands in the same shell:
+  export POD_NAME=$(kubectl get pods --namespace monitoring -l "app=prometheus-pushgateway,component=pushgateway" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace monitoring port-forward $POD_NAME 9091
+
+
+  1. Get your 'admin' user password by running:
+
+   kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+
+2. The Grafana server can be accessed via port 80 on the following DNS name from within your cluster:
+
+   grafana.monitoring.svc.cluster.local
+
+   Get the Grafana URL to visit by running these commands in the same shell:
+     export POD_NAME=$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
+     kubectl --namespace monitoring port-forward $POD_NAME 3000
+
+3. Login with the password from step 1 and the username: admin
+
+https://semaphoreci.com/blog/prometheus-grafana-kubernetes-helm
+
+
+
+To get grafana password
+kubectl get secret --namespace monitoring  grafana -o jsonpath="{.data.admin-password}" | base64 --decode

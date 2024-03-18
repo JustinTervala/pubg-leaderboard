@@ -21,6 +21,7 @@ from models import (
     GameMode,
     LeaderboardKey,
     LeaderboardPlayer,
+    PlayerRank
 )
 
 
@@ -128,21 +129,11 @@ def get_leaderboards(
     return leaderboards
 
 
-def summarize_leaderboards(leaderboards: dict[LeaderboardKey, list[LeaderboardPlayer]]) -> dict[str, list[dict[str, Any]]]:
+def summarize_leaderboards(leaderboards: dict[LeaderboardKey, list[LeaderboardPlayer]]) -> dict[str, list[PlayerRank]]:
     players = defaultdict(list)
     for key, leaderboard in leaderboards.items():
         for player in leaderboard:
-            attr = player.attributes
-            stats = attr.stats
-            player_data = {
-                "platform_region": key.platform_region,
-                "current_season": key.season,
-                "game_mode": key.game_mode.value,
-                "rank": attr.rank,
-                "games_played": stats.games,
-                "wins": stats.wins,
-            }
-            players[player.id].append(player_data)
+            players[player.id].append(PlayerRank.from_player(player, key))
     return players
 
 
@@ -155,7 +146,7 @@ def read_cache(cache_path: Path) -> Union[dict, list]:
     return json.loads(cache_path.read_text(encoding="utf-8"))
 
 
-def write_to_redis(players: dict[str, list[dict]]) -> None:
+def write_to_redis(players: dict[str, list[dict[str, PlayerRank]]]) -> None:
     logger.info("Writing to redis...")
     redis_client = Redis(
         host=config["REDIS_HOST"],
@@ -188,10 +179,11 @@ def main(
         leaderboards = get_leaderboards(quick=quick)
         if use_cache:
             write_to_cache(cache_dir / "leanderboards.json", leaderboards)
-    players = summarize_leaderboards(leaderboards)
+    player_ranks = summarize_leaderboards(leaderboards)
+    player_ranks_json = {account_id: [player.model_dump_json() for player in players] for account_id, players in player_ranks.items()}
     if not quick:
-        write_to_cache(cache_dir / "players.json", players)
-    # write_to_redis(players)
+        write_to_cache(cache_dir / "players.json", player_ranks_json)
+    write_to_redis(player_ranks_json)
 
 if __name__ == "__main__":
     main()

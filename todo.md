@@ -13,7 +13,7 @@ Dockerfile polish
 
 
 Infra (ADD TO INSTRUCTIONS)
-    - connect IRSA
+    - make startup scri
     
 Infra Polish
     - pod disruption budget
@@ -27,9 +27,13 @@ slim vs slim buster in dockerfile
 
 
 Overall
-    - IRSA
-    - Deploy prometheus, grapfana
     - Add metrics
+        to instrument job with metrics use a push gateway
+            https://stackoverflow.com/questions/5zz4920309/monitoring-short-lived-python-batch-job-processes-using-prometheus
+    - DOCS!
+    - use kustomize
+    - add output pydantic models for app
     - Add documentation for setting it all up
-    - Add pod disruption for app
+    - add quality of service
+
     

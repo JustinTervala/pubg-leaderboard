@@ -1,0 +1,6 @@
+persistence:
+  enabled: true
+  storageClassName: local-storage
+  existingClaim: prometheus-pvc
+alertmanager:
+  enabled: false

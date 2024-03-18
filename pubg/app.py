@@ -6,6 +6,7 @@ from redis.cluster import RedisCluster as Redis
 from pydantic import BaseModel
 
 from .config import load_config, configure_logging
+from .models import PlayerRank
 
 
 
@@ -48,4 +49,4 @@ def read_root(account_id: str):
             detail=f"No information found for account {account_id}",
         )
     leaderboards = redis.get(account_id)
-    return {"leaderboards": json.loads(leaderboards)}
+    return {"leaderboards": PlayerRank(**leaderboards)}
