@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 import sys
 
 from dotenv import dotenv_values
@@ -18,7 +18,7 @@ def load_config() -> dict[str, str]:
         f"{key}={value}" for key, value in config.items() if key not in secret_config
     ] + [f"{key}=******" for key in secret_config]
     logger.info(f"Using config from file {', '.join(printed_configs)}")
-    return merged_config | os.environ
+    return merged_config | dict(os.environ)
 
 
 def configure_logging(debug: bool = False) -> None:

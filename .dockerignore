@@ -1,2 +1,8 @@
 data/
 .env.secret
+__pycache__
+.git
+*.md
+.python-version
+*.yaml
+infra/

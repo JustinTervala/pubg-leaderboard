@@ -1,11 +1,8 @@
-from http import HTTPStatus
-import json
-
 from fastapi import FastAPI, HTTPException, status
-from redis.cluster import RedisCluster as Redis
 from pydantic import BaseModel
+from redis.cluster import RedisCluster as Redis
 
-from .config import load_config, configure_logging
+from .config import configure_logging, load_config
 from .models import PlayerRank
 
 

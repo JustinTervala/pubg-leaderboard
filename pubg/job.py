@@ -1,27 +1,22 @@
-import time
-import sys
-import json
 from collections import defaultdict
-import argparse
+import json
+import logging
 from pathlib import Path
 from typing import Any, Iterable, Optional, Union
-import os
-import logging
 
-from pydantic import BaseModel, Field
-from requests_ratelimiter import LimiterSession
-from dotenv import dotenv_values
-from redis.cluster import RedisCluster as Redis
 import click
+from dotenv import dotenv_values
+from requests_ratelimiter import LimiterSession
+from redis.cluster import RedisCluster as Redis
 
-from config import load_config, configure_logging
+from config import configure_logging, load_config
 from models import (
-    Season,
-    SeasonLeaderboard,
     GameMode,
     LeaderboardKey,
     LeaderboardPlayer,
     PlayerRank,
+    Season,
+    SeasonLeaderboard,
 )
 
 

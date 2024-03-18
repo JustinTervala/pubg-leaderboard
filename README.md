@@ -70,9 +70,10 @@ This will
 
 ## Operating
 
-### Querying the api
+### Querying the API
 1. Run `minikube service pubg --url -n pubg`. This should display a URL. Keey this tab open adn running.
 2. In another tab, run `curl <url>/accounts/<account-id>/leaderboards`
+3. Swagger Docs can be viewed in your browser at `<url>/docs`
 
 ### Inspecting the Redis cluster
 1. Run `./redis-cli.sh` and when prompted, press ENTER
@@ -98,11 +99,26 @@ export POLICY_ARN=<some ARN here>
 kubectl annotate sa pubg eks.amazonaws.com/role-arn=$MY_ROLE_ARN -n pubg
 ```
 
+### Getting the Grafana login
+The username is `admin`. To get the password, run
+`kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo`
+
+### Updating the secrets
+After updating the .env.secrets, run
+```
+kubectl create secret generic pubg-scraper-secret \
+    --save-config \
+    --dry-run=client \
+    --from-file=.env.secret \
+    -o yaml | \
+    kubectl apply -f -
+```
+
 ## Development
 Both the job and the app are written in Python 3.9 and use [Poetry](https://python-poetry.org) for environment management.
 
 ### Configuration
-Configuration is done through [dotenv](https://github.com/theskumar/python-dotenv) files. In order of preferce, configuration is loaded from `.env`, `.env.secret`, and environment variables. The avilable configuration is REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, and PUBG_API_KEY
+Configuration is done through [dotenv](https://github.com/theskumar/python-dotenv) files. In order of preferce, configuration is loaded from `.env`, `.env.secret`, and environment variables. The avilable configuration is REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, and PUBG_API_KEY. You can create a local .env file manually or using the dotenv cli e.g. `poetry run dotenv set REDIS_ADDRESS localhost`
 
 ### Running the job locally
 To run the API scrape job locally, you can run
