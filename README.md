@@ -103,6 +103,7 @@ kubectl annotate sa pubg eks.amazonaws.com/role-arn=$MY_ROLE_ARN -n pubg
 The username is `admin`. To get the password, run
 `kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo`
 
+
 ### Updating the secrets
 After updating the .env.secrets, run
 ```
@@ -118,12 +119,10 @@ kubectl create secret generic pubg-scraper-secret \
 Both the job and the app are written in Python 3.9 and use [Poetry](https://python-poetry.org) for environment management.
 
 ### Configuration
-Configuration is done through [dotenv](https://github.com/theskumar/python-dotenv) files. In order of preferce, configuration is loaded from `.env`, `.env.secret`, and environment variables. The avilable configuration is REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, and PUBG_API_KEY. You can create a local .env file manually or using the dotenv cli e.g. `poetry run dotenv set REDIS_ADDRESS localhost`
-
+Configuration is done through [dotenv](https://github.com/theskumar/python-dotenv) files. In order of preferce, configuration is loaded from `.env`, `.env.secret`, and environment variables. The avilable configuration is REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, and PUBG_API_KEY. You can create a local .env file manually or using the dotenv cli e.g. `poetry run dotenv set REDIS_HOST localhost`. For either the job or the app to run outside of the cluster, you'll need to start a redis server in a terminal and configure the REDIS_HOST and REDIS_PORT appropriately.
 ### Running the job locally
 To run the API scrape job locally, you can run
 `poetry run python pubg/job.py`. Because the rate limit for the PUBG API is 0 requsts per minute, this job take a long time complete. For rapid development, you can enable reading and writing to a local cache using the options `--use-cache` and `--cache-dir`. For quickly testing the entire pipeline, there is also a `--quick` option which will limit the number of leaderboards read to 5.
-Due to issues with the ingresses on minikube, I was unable to connect to the Redis cluster from outside the cluster, so it is expected to fail locally.
 
 ### Linting
 To lint the Python code, run `poetry run black pubg`

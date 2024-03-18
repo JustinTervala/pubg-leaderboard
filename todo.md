@@ -1,6 +1,5 @@
 # Job/App ToDo
-- Support using a locally-ruuning Redis server outside of the cluster (barring fixing the ingress, instead of just failing)
-- Use version of package in user-agent header (use importlib)
+- Use importlib to get version of package in user-agent header
 - Add tests
 - Check with mypy
 - Add ruf for linting
@@ -14,7 +13,7 @@
 
 # Dockerfile ToDo
 - Better cleanup for apt lists, etc
-- If there's testing, add a dev image layer
+- If there's testing, add a dev image layer which runs the tests and fails to build if they don't pass
 - Add labels
 
 # Infrastructure Polish

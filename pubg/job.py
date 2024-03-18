@@ -18,6 +18,7 @@ from models import (
     Season,
     SeasonLeaderboard,
 )
+from version import version
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ config = load_config()
 headers = {
     "Accept": "application/vnd.api+json",
     "Accept-Encoding": "gzip",
-    "User-Agent": "pubg-leader-updater",  # TODO: Add version getter here
+    "User-Agent": f"pubg-leader-updater/{version}",
     "Authorization": f"Bearer {config['PUBG_API_KEY']}",
 }
 
