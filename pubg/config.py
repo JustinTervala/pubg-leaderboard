@@ -21,7 +21,7 @@ def load_config() -> dict[str, str]:
     return merged_config | os.environ
 
 
-def configure_logging(debug: bool=False) -> None:
+def configure_logging(debug: bool = False) -> None:
     level = logging.DEBUG if debug else logging.INFO
     root = logging.getLogger()
     root.setLevel(level)

@@ -18,6 +18,7 @@ helm install grafana grafana/grafana --namespace monitoring -f infra/values/graf
 helm install pubg oci://registry-1.docker.io/bitnamicharts/redis-cluster --namespace pubg -f infra/values/redis.yaml
 kubectl apply -f infra/redis-config.yaml --namespace pubg
 
+echo "PUBG_API_KEY=\"$PUBG_API_KEY\"" >> .env.secret
 export REDIS_PASSWORD=$(kubectl get secret --namespace "pubg" pubg-redis-cluster -o jsonpath="{.data.redis-password}" | base64 -d)
 echo "REDIS_PASSWORD=\"$REDIS_PASSWORD\"" >> .env.secret
 kubectl create secret generic pubg-scraper-secret --from-file .env.secret --namespace pubg

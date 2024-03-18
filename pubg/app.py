@@ -9,7 +9,6 @@ from .config import load_config, configure_logging
 from .models import PlayerRank
 
 
-
 configure_logging()
 app = FastAPI(name="PUBG Leaderboards")
 config = load_config()

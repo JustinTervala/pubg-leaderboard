@@ -17,7 +17,6 @@ spec:
               args:
                 - "python"
                 - "pubg/job.py"
-                - "--quick"
               envFrom:
                 - configMapRef:
                     name: redis-config

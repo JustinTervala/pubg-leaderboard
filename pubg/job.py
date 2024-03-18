@@ -21,7 +21,7 @@ from models import (
     GameMode,
     LeaderboardKey,
     LeaderboardPlayer,
-    PlayerRank
+    PlayerRank,
 )
 
 
@@ -101,8 +101,8 @@ def get_leaderboards(
     out = []
     for key in iter_leaderboards():
         i += 1
-        if quick and i > 3:
-            logger.info("ENDING")
+        if quick and i > 5:
+            logger.info("Ending early becuase --quick is enabled")
             break
         leaderboard_resp = session.get(
             leaderboard_url.format(
@@ -129,7 +129,9 @@ def get_leaderboards(
     return leaderboards
 
 
-def summarize_leaderboards(leaderboards: dict[LeaderboardKey, list[LeaderboardPlayer]]) -> dict[str, list[PlayerRank]]:
+def summarize_leaderboards(
+    leaderboards: dict[LeaderboardKey, list[LeaderboardPlayer]]
+) -> dict[str, list[PlayerRank]]:
     players = defaultdict(list)
     for key, leaderboard in leaderboards.items():
         for player in leaderboard:
@@ -153,13 +155,17 @@ def write_to_redis(players: dict[str, list[dict[str, PlayerRank]]]) -> None:
         port=config["REDIS_PORT"],
         password=config["REDIS_PASSWORD"],
     )
-    for i, (account_id, leaderboards) in enumerate(players.items()):
-        if i > 10:
-            break
+    for account_id, leaderboards in players.items():
         redis_client.set(account_id.replace(".", ":"), json.dumps(leaderboards))
 
+
 @click.command()
-@click.option("-c", "--cache-dir", type=click.Path(file_okay=False, path_type=Path), default=Path("./data"))
+@click.option(
+    "-c",
+    "--cache-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("./data"),
+)
 @click.option("--use-cache", is_flag=True)
 @click.option("--quick", is_flag=True)
 def main(
@@ -174,16 +180,18 @@ def main(
     if not quick and use_cache and leaderboards_cache.exists():
         leaderboards = read_cache(leaderboards_cache)
     else:
-        # disable using future caching
-        use_cache = False
         leaderboards = get_leaderboards(quick=quick)
         if use_cache:
             write_to_cache(cache_dir / "leanderboards.json", leaderboards)
     player_ranks = summarize_leaderboards(leaderboards)
-    player_ranks_json = {account_id: [player.model_dump_json() for player in players] for account_id, players in player_ranks.items()}
-    if not quick:
+    player_ranks_json = {
+        account_id: [player.model_dump_json() for player in players]
+        for account_id, players in player_ranks.items()
+    }
+    if not quick and use_cache:
         write_to_cache(cache_dir / "players.json", player_ranks_json)
     write_to_redis(player_ranks_json)
+
 
 if __name__ == "__main__":
     main()
